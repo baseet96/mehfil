@@ -73,11 +73,14 @@ export default function GamePage() {
   }
 
   function handleQuickStart() {
-    setDeck(shuffle(staticDeck));
-    setGameState("playing");
+    const defaults: PersonalizationInput = {
+      isAdult: false,
+      language: "English",
+    };
+    handleGenerate(defaults);
   }
 
-  async function handlePersonalized(data: PersonalizationInput) {
+  async function handleGenerate(data: PersonalizationInput) {
     const cached = getCachedDeck(slug, data);
     if (cached) {
       setDeck(shuffle(cached));
@@ -173,7 +176,7 @@ export default function GamePage() {
   }
 
   if (gameState === "personalizing") {
-    return <PersonalizationFlow onComplete={handlePersonalized} />;
+    return <PersonalizationFlow onComplete={handleGenerate} />;
   }
 
   if (gameState === "loading") {

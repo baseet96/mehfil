@@ -42,9 +42,10 @@ export function buildWouldYouRatherPrompt(
   }
 
   const hasLocation = personalization.country && personalization.country.length > 0;
+  const hasVibe = personalization.vibe && personalization.vibe.length > 0;
   const hasGroup = personalization.groupDescription && personalization.groupDescription.length > 0;
 
-  if (hasLocation || personalization.vibe || hasGroup) {
+  if (hasLocation || hasVibe || hasGroup) {
     lines.push("", "## About the group");
 
     if (hasLocation) {
@@ -54,7 +55,9 @@ export function buildWouldYouRatherPrompt(
       lines.push(`- From ${location}`);
     }
 
-    lines.push(`- Vibe: ${personalization.vibe}`);
+    if (hasVibe) {
+      lines.push(`- Vibe: ${personalization.vibe}`);
+    }
 
     if (hasGroup) {
       lines.push(

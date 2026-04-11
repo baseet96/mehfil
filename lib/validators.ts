@@ -4,7 +4,7 @@ export interface PersonalizationInput {
   script?: "native" | "latin";
   country?: string;
   city?: string;
-  vibe: string;
+  vibe?: string;
   groupDescription?: string;
 }
 
@@ -75,11 +75,10 @@ export function validatePersonalization(
     return { valid: false, error: "city must be a string under 100 chars" };
   }
   if (
-    typeof obj.vibe !== "string" ||
-    obj.vibe.length === 0 ||
-    obj.vibe.length > 100
+    obj.vibe !== undefined &&
+    (typeof obj.vibe !== "string" || obj.vibe.length > 100)
   ) {
-    return { valid: false, error: "vibe must be a non-empty string under 100 chars" };
+    return { valid: false, error: "vibe must be a string under 100 chars" };
   }
   if (
     obj.groupDescription !== undefined &&
@@ -100,7 +99,7 @@ export function validatePersonalization(
       script: obj.script as "native" | "latin" | undefined,
       country: typeof obj.country === "string" ? obj.country.trim() : undefined,
       city: typeof obj.city === "string" ? obj.city.trim() : undefined,
-      vibe: obj.vibe.trim(),
+      vibe: typeof obj.vibe === "string" ? obj.vibe.trim() : undefined,
       groupDescription:
         typeof obj.groupDescription === "string"
           ? obj.groupDescription.trim()
