@@ -2,10 +2,6 @@ export interface PersonalizationInput {
   isAdult: boolean;
   language: string;
   script?: "native" | "latin";
-  country?: string;
-  city?: string;
-  vibe?: string;
-  groupDescription?: string;
 }
 
 const VALID_GAMES = [
@@ -17,7 +13,6 @@ const VALID_GAMES = [
 
 export type GameSlug = (typeof VALID_GAMES)[number];
 
-const MAX_TEXT_LENGTH = 500;
 const MAX_DECK_SIZE = 30;
 
 export function validateGameSlug(slug: unknown): slug is GameSlug {
@@ -62,48 +57,12 @@ export function validatePersonalization(
   ) {
     return { valid: false, error: "script must be 'native' or 'latin' if provided" };
   }
-  if (
-    obj.country !== undefined &&
-    (typeof obj.country !== "string" || obj.country.length > 100)
-  ) {
-    return { valid: false, error: "country must be a string under 100 chars" };
-  }
-  if (
-    obj.city !== undefined &&
-    (typeof obj.city !== "string" || obj.city.length > 100)
-  ) {
-    return { valid: false, error: "city must be a string under 100 chars" };
-  }
-  if (
-    obj.vibe !== undefined &&
-    (typeof obj.vibe !== "string" || obj.vibe.length > 100)
-  ) {
-    return { valid: false, error: "vibe must be a string under 100 chars" };
-  }
-  if (
-    obj.groupDescription !== undefined &&
-    (typeof obj.groupDescription !== "string" ||
-      obj.groupDescription.length > MAX_TEXT_LENGTH)
-  ) {
-    return {
-      valid: false,
-      error: `groupDescription must be under ${MAX_TEXT_LENGTH} chars`,
-    };
-  }
-
   return {
     valid: true,
     data: {
       isAdult: obj.isAdult,
       language: obj.language.trim(),
       script: obj.script as "native" | "latin" | undefined,
-      country: typeof obj.country === "string" ? obj.country.trim() : undefined,
-      city: typeof obj.city === "string" ? obj.city.trim() : undefined,
-      vibe: typeof obj.vibe === "string" ? obj.vibe.trim() : undefined,
-      groupDescription:
-        typeof obj.groupDescription === "string"
-          ? obj.groupDescription.trim()
-          : undefined,
     },
   };
 }
