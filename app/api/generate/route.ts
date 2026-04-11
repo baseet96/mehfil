@@ -1,5 +1,136 @@
 import { NextResponse } from "next/server";
+import { checkRateLimit } from "@/lib/rate-limiter";
+import { generateDeck } from "@/lib/llm";
+import {
+  validateGameSlug,
+  validateDeckSize,
+  validatePersonalization,
+  validateDeck,
+} from "@/lib/validators";
+import { buildWouldYouRatherPrompt } from "@/lib/prompts/would-you-rather";
 
-export async function POST() {
-  return NextResponse.json({ message: "Hello from Mehfil API" });
+const DEFAULT_COUNT = 25;
+
+function getPromptForGame(
+  game: string,
+  personalization: Parameters<typeof buildWouldYouRatherPrompt>[0],
+  count: number
+): string {
+  switch (game) {
+    case "would-you-rather":
+      return buildWouldYouRatherPrompt(personalization, count);
+    default:
+      throw new Error(`No prompt builder for game: ${game}`);
+  }
+}
+
+export async function POST(request: Request) {
+  // 1. Rate limit
+  const ip =
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    request.headers.get("x-real-ip") ||
+    "unknown";
+
+  const rateCheck = checkRateLimit(ip);
+  if (!rateCheck.allowed) {
+    return NextResponse.json(
+      { error: "Rate limit exceeded. Try again later." },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(rateCheck.retryAfterSeconds ?? 3600),
+        },
+      }
+    );
+  }
+
+  // 2. Parse and validate input
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json(
+      { error: "Invalid JSON body" },
+      { status: 400 }
+    );
+  }
+
+  if (typeof body !== "object" || body === null) {
+    return NextResponse.json(
+      { error: "Request body must be an object" },
+      { status: 400 }
+    );
+  }
+
+  const { game, personalization, count } = body as Record<string, unknown>;
+
+  if (!validateGameSlug(game)) {
+    return NextResponse.json(
+      { error: "Invalid game slug" },
+      { status: 400 }
+    );
+  }
+
+  const deckSize = count === undefined ? DEFAULT_COUNT : count;
+  if (!validateDeckSize(deckSize)) {
+    return NextResponse.json(
+      { error: "count must be an integer between 1 and 30" },
+      { status: 400 }
+    );
+  }
+
+  const persResult = validatePersonalization(personalization);
+  if (!persResult.valid) {
+    return NextResponse.json(
+      { error: persResult.error },
+      { status: 400 }
+    );
+  }
+
+  // 3. Build prompt
+  let systemPrompt: string;
+  try {
+    systemPrompt = getPromptForGame(game, persResult.data, deckSize);
+  } catch {
+    return NextResponse.json(
+      { error: "Game not yet supported for generation" },
+      { status: 400 }
+    );
+  }
+
+  // 4. Call LLM + validate (with one retry)
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const raw = await generateDeck(systemPrompt);
+      const deckResult = validateDeck(raw, deckSize);
+
+      if (deckResult.valid) {
+        return NextResponse.json({ deck: deckResult.deck });
+      }
+
+      // First attempt failed validation — retry once
+      if (attempt === 0) {
+        continue;
+      }
+
+      return NextResponse.json(
+        { error: "Generated content failed validation. Please try again." },
+        { status: 502 }
+      );
+    } catch (err) {
+      if (attempt === 1) {
+        const message =
+          err instanceof Error ? err.message : "Unknown LLM error";
+        return NextResponse.json(
+          { error: `Generation failed: ${message}` },
+          { status: 502 }
+        );
+      }
+    }
+  }
+
+  return NextResponse.json(
+    { error: "Generation failed after retries" },
+    { status: 502 }
+  );
 }

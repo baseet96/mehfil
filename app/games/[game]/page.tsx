@@ -9,9 +9,12 @@ import { wouldYouRatherDeck } from "@/lib/decks/would-you-rather";
 import { mostLikelyToDeck } from "@/lib/decks/most-likely-to";
 import { truthOrDareDeck } from "@/lib/decks/truth-or-dare";
 import { twoTruthsOneLieDeck } from "@/lib/decks/two-truths-one-lie";
+import { getCachedDeck, cacheDeck } from "@/lib/storage";
+import type { PersonalizationInput } from "@/lib/validators";
 import PromptGame from "@/components/PromptGame";
+import PersonalizationFlow from "@/components/PersonalizationFlow";
 
-function getDeckForGame(slug: string): string[] {
+function getStaticDeck(slug: string): string[] {
   switch (slug) {
     case "would-you-rather":
       return wouldYouRatherDeck;
@@ -26,24 +29,36 @@ function getDeckForGame(slug: string): string[] {
   }
 }
 
+const LLM_GAMES = new Set(["would-you-rather"]);
+
+type GameState =
+  | "age-gate"
+  | "choose"
+  | "personalizing"
+  | "loading"
+  | "playing"
+  | "game-over";
+
 export default function GamePage() {
   const params = useParams<{ game: string }>();
-  const needsAgeGate = params.game === "truth-or-dare";
-  const [gameState, setGameState] = useState<"age-gate" | "playing" | "game-over">(
-    needsAgeGate ? "age-gate" : "playing"
-  );
-  const [shuffleKey, setShuffleKey] = useState(0);
+  const slug = params.game;
+  const needsAgeGate = slug === "truth-or-dare";
+  const supportsLLM = LLM_GAMES.has(slug);
 
-  const gameInfo = games.find(
-    (g) => g.slug === params.game && g.available
+  const staticDeck = useMemo(() => getStaticDeck(slug), [slug]);
+
+  const [gameState, setGameState] = useState<GameState>(() => {
+    if (needsAgeGate) return "age-gate";
+    if (supportsLLM) return "choose";
+    return "playing";
+  });
+  const [deck, setDeck] = useState<string[]>(() =>
+    supportsLLM ? [] : shuffle(staticDeck)
   );
 
-  const deck = useMemo(
-    () => shuffle(getDeckForGame(params.game)),
-    [params.game, shuffleKey]
-  );
+  const gameInfo = games.find((g) => g.slug === slug && g.available);
 
-  if (!gameInfo || deck.length === 0) {
+  if (!gameInfo || staticDeck.length === 0) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
         <p className="text-xl font-medium">Game not found</p>
@@ -57,13 +72,63 @@ export default function GamePage() {
     );
   }
 
+  function handleQuickStart() {
+    setDeck(shuffle(staticDeck));
+    setGameState("playing");
+  }
+
+  async function handlePersonalized(data: PersonalizationInput) {
+    const cached = getCachedDeck(slug, data);
+    if (cached) {
+      setDeck(shuffle(cached));
+      setGameState("playing");
+      return;
+    }
+
+    setGameState("loading");
+
+    try {
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ game: slug, personalization: data, count: 25 }),
+      });
+
+      if (!res.ok) {
+        const body: { error?: string } | null = await res
+          .json()
+          .catch(() => null);
+        throw new Error(body?.error ?? `HTTP ${res.status}`);
+      }
+
+      const { deck: generated }: { deck: string[] } = await res.json();
+      cacheDeck(slug, data, generated);
+      setDeck(shuffle(generated));
+      setGameState("playing");
+    } catch {
+      setDeck(shuffle(staticDeck));
+      setGameState("playing");
+    }
+  }
+
+  function handlePlayAgain() {
+    if (supportsLLM) {
+      setDeck([]);
+      setGameState("choose");
+    } else {
+      setDeck(shuffle(staticDeck));
+      setGameState(needsAgeGate ? "age-gate" : "playing");
+    }
+  }
+
   if (gameState === "age-gate") {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6 text-center">
-        <span className="text-5xl">🔞</span>
+        <span className="text-5xl">{"\uD83D\uDD1E"}</span>
         <h1 className="text-2xl font-bold">Is everyone 18+?</h1>
         <p className="text-foreground/60">
-          This game may include mature prompts. Make sure everyone playing is comfortable.
+          This game may include mature prompts. Make sure everyone playing is
+          comfortable.
         </p>
         <div className="flex flex-col gap-3">
           <button
@@ -83,6 +148,45 @@ export default function GamePage() {
     );
   }
 
+  if (gameState === "choose") {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6 text-center">
+        <span className="text-5xl">{gameInfo.emoji}</span>
+        <h1 className="text-2xl font-bold">{gameInfo.name}</h1>
+        <p className="text-foreground/60">How do you want to play?</p>
+        <div className="flex w-full max-w-xs flex-col gap-3">
+          <button
+            onClick={handleQuickStart}
+            className="cursor-pointer rounded-full bg-foreground px-8 py-3 text-lg font-medium text-background transition-opacity hover:opacity-90"
+          >
+            Quick Start
+          </button>
+          <button
+            onClick={() => setGameState("personalizing")}
+            className="cursor-pointer rounded-full border border-foreground/20 px-8 py-3 text-lg font-medium transition-colors hover:bg-foreground/5"
+          >
+            Personalize
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (gameState === "personalizing") {
+    return <PersonalizationFlow onComplete={handlePersonalized} />;
+  }
+
+  if (gameState === "loading") {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-foreground/20 border-t-foreground" />
+        <p className="text-lg text-foreground/60">
+          Generating your prompts...
+        </p>
+      </div>
+    );
+  }
+
   if (gameState === "game-over") {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6 text-center">
@@ -92,10 +196,7 @@ export default function GamePage() {
         </p>
         <div className="flex flex-col gap-3">
           <button
-            onClick={() => {
-              setShuffleKey((k) => k + 1);
-              setGameState(needsAgeGate ? "age-gate" : "playing");
-            }}
+            onClick={handlePlayAgain}
             className="cursor-pointer rounded-full bg-foreground px-8 py-3 text-lg font-medium text-background transition-opacity hover:opacity-90"
           >
             Play Again
