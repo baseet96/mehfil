@@ -12,6 +12,7 @@ import { twoTruthsOneLieDeck } from "@/lib/decks/two-truths-one-lie";
 import { getCachedDeck, cacheDeck } from "@/lib/storage";
 import type { PersonalizationInput } from "@/lib/validators";
 import PromptGame from "@/components/PromptGame";
+import TruthOrDareGame from "@/components/TruthOrDareGame";
 import PersonalizationFlow from "@/components/PersonalizationFlow";
 
 function getStaticDeck(slug: string): string[] {
@@ -29,7 +30,12 @@ function getStaticDeck(slug: string): string[] {
   }
 }
 
-const LLM_GAMES = new Set(["would-you-rather"]);
+const LLM_GAMES = new Set([
+  "would-you-rather",
+  "most-likely-to",
+  "truth-or-dare",
+  "two-truths-one-lie",
+]);
 
 type GameState =
   | "age-gate"
@@ -115,12 +121,14 @@ export default function GamePage() {
   }
 
   function handlePlayAgain() {
-    if (supportsLLM) {
-      setDeck([]);
+    setDeck([]);
+    if (needsAgeGate) {
+      setGameState("age-gate");
+    } else if (supportsLLM) {
       setGameState("choose");
     } else {
       setDeck(shuffle(staticDeck));
-      setGameState(needsAgeGate ? "age-gate" : "playing");
+      setGameState("playing");
     }
   }
 
@@ -135,7 +143,7 @@ export default function GamePage() {
         </p>
         <div className="flex flex-col gap-3">
           <button
-            onClick={() => setGameState("playing")}
+            onClick={() => setGameState(supportsLLM ? "choose" : "playing")}
             className="cursor-pointer rounded-full bg-foreground px-8 py-3 text-lg font-medium text-background transition-opacity hover:opacity-90"
           >
             Yes, we are all 18+
@@ -212,6 +220,16 @@ export default function GamePage() {
           </Link>
         </div>
       </div>
+    );
+  }
+
+  if (slug === "truth-or-dare") {
+    return (
+      <TruthOrDareGame
+        deck={deck}
+        gameName={gameInfo.name}
+        onGameOver={() => setGameState("game-over")}
+      />
     );
   }
 

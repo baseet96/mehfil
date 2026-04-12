@@ -6,19 +6,29 @@ import {
   validateDeckSize,
   validatePersonalization,
   validateDeck,
+  type PersonalizationInput,
 } from "@/lib/validators";
 import { buildWouldYouRatherPrompt } from "@/lib/prompts/would-you-rather";
+import { buildMostLikelyToPrompt } from "@/lib/prompts/most-likely-to";
+import { buildTruthOrDarePrompt } from "@/lib/prompts/truth-or-dare";
+import { buildTwoTruthsOneLiePrompt } from "@/lib/prompts/two-truths-one-lie";
 
 const DEFAULT_COUNT = 25;
 
 function getPromptForGame(
   game: string,
-  personalization: Parameters<typeof buildWouldYouRatherPrompt>[0],
+  personalization: PersonalizationInput,
   count: number
 ): string {
   switch (game) {
     case "would-you-rather":
       return buildWouldYouRatherPrompt(personalization, count);
+    case "most-likely-to":
+      return buildMostLikelyToPrompt(personalization, count);
+    case "truth-or-dare":
+      return buildTruthOrDarePrompt(personalization, count);
+    case "two-truths-one-lie":
+      return buildTwoTruthsOneLiePrompt(personalization, count);
     default:
       throw new Error(`No prompt builder for game: ${game}`);
   }
