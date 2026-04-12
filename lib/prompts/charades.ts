@@ -18,7 +18,7 @@ export function buildCharadesPrompt(
 
   if (personalization.isAdult) {
     lines.push(
-      "- 18+ mode: Include raunchy, suggestive, and embarrassing prompts. Cards Against Humanity energy."
+      "- 18+ mode: Raunchy and suggestive, but still 1–2 common words that people can actually guess."
     );
   }
 
