@@ -12,6 +12,7 @@ import { buildWouldYouRatherPrompt } from "@/lib/prompts/would-you-rather";
 import { buildMostLikelyToPrompt } from "@/lib/prompts/most-likely-to";
 import { buildTruthOrDarePrompt } from "@/lib/prompts/truth-or-dare";
 import { buildTwoTruthsOneLiePrompt } from "@/lib/prompts/two-truths-one-lie";
+import { buildCharadesPrompt } from "@/lib/prompts/charades";
 
 const DEFAULT_COUNT = 25;
 
@@ -29,6 +30,8 @@ function getPromptForGame(
       return buildTruthOrDarePrompt(personalization, count);
     case "two-truths-one-lie":
       return buildTwoTruthsOneLiePrompt(personalization, count);
+    case "charades":
+      return buildCharadesPrompt(personalization, count);
     default:
       throw new Error(`No prompt builder for game: ${game}`);
   }
