@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState } from "react";
 import { shuffle } from "@/lib/shuffle";
 
 interface TruthOrDareGameProps {
@@ -35,18 +35,15 @@ export default function TruthOrDareGame({
   const daresLeft = dares.length - dareIndex;
   const usedCount = truthIndex + dareIndex;
 
-  const pick = useCallback(
-    (type: "truth" | "dare") => {
-      if (type === "truth" && truthsLeft > 0) {
-        setCurrent({ type: "truth", text: truths[truthIndex] });
-        setTruthIndex((i) => i + 1);
-      } else if (type === "dare" && daresLeft > 0) {
-        setCurrent({ type: "dare", text: dares[dareIndex] });
-        setDareIndex((i) => i + 1);
-      }
-    },
-    [truths, dares, truthIndex, dareIndex, truthsLeft, daresLeft]
-  );
+  function pick(type: "truth" | "dare") {
+    if (type === "truth" && truthsLeft > 0) {
+      setCurrent({ type: "truth", text: truths[truthIndex] });
+      setTruthIndex((i) => i + 1);
+    } else if (type === "dare" && daresLeft > 0) {
+      setCurrent({ type: "dare", text: dares[dareIndex] });
+      setDareIndex((i) => i + 1);
+    }
+  }
 
   function handleNext() {
     setCurrent(null);

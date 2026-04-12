@@ -43,8 +43,12 @@ export async function POST(request: Request) {
 
   const rateCheck = checkRateLimit(ip);
   if (!rateCheck.allowed) {
+    const minutes = Math.ceil((rateCheck.retryAfterSeconds ?? 3600) / 60);
     return NextResponse.json(
-      { error: "Rate limit exceeded. Try again later." },
+      {
+        code: "rate_limited",
+        error: `Too many requests. Try again in ~${minutes} minute${minutes === 1 ? "" : "s"}.`,
+      },
       {
         status: 429,
         headers: {
@@ -124,15 +128,19 @@ export async function POST(request: Request) {
       }
 
       return NextResponse.json(
-        { error: "Generated content failed validation. Please try again." },
+        {
+          code: "generation_failed",
+          error: "AI generated unexpected content. Please try again.",
+        },
         { status: 502 }
       );
-    } catch (err) {
+    } catch {
       if (attempt === 1) {
-        const message =
-          err instanceof Error ? err.message : "Unknown LLM error";
         return NextResponse.json(
-          { error: `Generation failed: ${message}` },
+          {
+            code: "generation_failed",
+            error: "Couldn't reach the AI service. Please try again later.",
+          },
           { status: 502 }
         );
       }
@@ -140,7 +148,10 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json(
-    { error: "Generation failed after retries" },
+    {
+      code: "generation_failed",
+      error: "Something went wrong generating content. Please try again.",
+    },
     { status: 502 }
   );
 }

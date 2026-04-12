@@ -13,6 +13,7 @@ import { getCachedDeck, cacheDeck } from "@/lib/storage";
 import type { PersonalizationInput } from "@/lib/validators";
 import PromptGame from "@/components/PromptGame";
 import TruthOrDareGame from "@/components/TruthOrDareGame";
+import Toast from "@/components/Toast";
 import PersonalizationFlow from "@/components/PersonalizationFlow";
 
 function getStaticDeck(slug: string): string[] {
@@ -61,6 +62,7 @@ export default function GamePage() {
   const [deck, setDeck] = useState<string[]>(() =>
     supportsLLM ? [] : shuffle(staticDeck)
   );
+  const [toast, setToast] = useState<string | null>(null);
 
   const gameInfo = games.find((g) => g.slug === slug && g.available);
 
@@ -87,6 +89,8 @@ export default function GamePage() {
   }
 
   async function handleGenerate(data: PersonalizationInput) {
+    setToast(null);
+
     const cached = getCachedDeck(slug, data);
     if (cached) {
       setDeck(shuffle(cached));
@@ -104,17 +108,26 @@ export default function GamePage() {
       });
 
       if (!res.ok) {
-        const body: { error?: string } | null = await res
+        const body: { code?: string; error?: string } | null = await res
           .json()
           .catch(() => null);
-        throw new Error(body?.error ?? `HTTP ${res.status}`);
+        throw new Error(
+          body?.code === "rate_limited"
+            ? (body.error ?? "Too many requests. Try again later.")
+            : "Couldn't personalize — using default deck instead."
+        );
       }
 
       const { deck: generated }: { deck: string[] } = await res.json();
       cacheDeck(slug, data, generated);
       setDeck(shuffle(generated));
       setGameState("playing");
-    } catch {
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Couldn't personalize — using default deck instead.";
+      setToast(message);
       setDeck(shuffle(staticDeck));
       setGameState("playing");
     }
@@ -223,21 +236,27 @@ export default function GamePage() {
     );
   }
 
-  if (slug === "truth-or-dare") {
-    return (
+  const gameComponent =
+    slug === "truth-or-dare" ? (
       <TruthOrDareGame
         deck={deck}
         gameName={gameInfo.name}
         onGameOver={() => setGameState("game-over")}
       />
+    ) : (
+      <PromptGame
+        deck={deck}
+        gameName={gameInfo.name}
+        onGameOver={() => setGameState("game-over")}
+      />
     );
-  }
 
   return (
-    <PromptGame
-      deck={deck}
-      gameName={gameInfo.name}
-      onGameOver={() => setGameState("game-over")}
-    />
+    <>
+      {gameComponent}
+      {toast && (
+        <Toast message={toast} type="error" onDismiss={() => setToast(null)} />
+      )}
+    </>
   );
 }

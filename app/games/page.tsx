@@ -1,7 +1,13 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 import { games } from "@/lib/games";
+import Popup from "@/components/Popup";
 
 export default function GamesPage() {
+  const [showInfo, setShowInfo] = useState(true);
+
   return (
     <div className="flex flex-1 flex-col items-center px-6 py-12">
       <h1 className="mb-8 text-3xl font-bold">Pick a game</h1>
@@ -36,6 +42,12 @@ export default function GamesPage() {
           )
         )}
       </div>
+      {showInfo && (
+        <Popup
+          message="Game content is AI-generated"
+          onDismiss={() => setShowInfo(false)}
+        />
+      )}
     </div>
   );
 }
