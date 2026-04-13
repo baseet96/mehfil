@@ -1,4 +1,5 @@
 import Link from "next/link";
+import InstallPrompt from "@/components/InstallPrompt";
 
 export default function Home() {
   return (
@@ -13,6 +14,7 @@ export default function Home() {
       >
         Start Playing
       </Link>
+      <InstallPrompt />
     </div>
   );
 }
