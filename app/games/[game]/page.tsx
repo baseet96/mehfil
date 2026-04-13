@@ -43,7 +43,6 @@ const LLM_GAMES = new Set([
 ]);
 
 type GameState =
-  | "age-gate"
   | "choose"
   | "personalizing"
   | "loading"
@@ -53,13 +52,11 @@ type GameState =
 export default function GamePage() {
   const params = useParams<{ game: string }>();
   const slug = params.game;
-  const needsAgeGate = slug === "truth-or-dare";
   const supportsLLM = LLM_GAMES.has(slug);
 
   const staticDeck = useMemo(() => getStaticDeck(slug), [slug]);
 
   const [gameState, setGameState] = useState<GameState>(() => {
-    if (needsAgeGate) return "age-gate";
     if (supportsLLM) return "choose";
     return "playing";
   });
@@ -139,41 +136,12 @@ export default function GamePage() {
 
   function handlePlayAgain() {
     setDeck([]);
-    if (needsAgeGate) {
-      setGameState("age-gate");
-    } else if (supportsLLM) {
+    if (supportsLLM) {
       setGameState("choose");
     } else {
       setDeck(shuffle(staticDeck));
       setGameState("playing");
     }
-  }
-
-  if (gameState === "age-gate") {
-    return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6 text-center">
-        <span className="text-5xl">{"\uD83D\uDD1E"}</span>
-        <h1 className="text-2xl font-bold">Is everyone 18+?</h1>
-        <p className="text-foreground/60">
-          This game may include mature prompts. Make sure everyone playing is
-          comfortable.
-        </p>
-        <div className="flex flex-col gap-3">
-          <button
-            onClick={() => setGameState(supportsLLM ? "choose" : "playing")}
-            className="cursor-pointer rounded-full bg-foreground px-8 py-3 text-lg font-medium text-background transition-opacity hover:opacity-90"
-          >
-            Yes, we are all 18+
-          </button>
-          <Link
-            href="/games"
-            className="rounded-full border border-foreground/20 px-8 py-3 text-lg font-medium transition-colors hover:bg-foreground/5"
-          >
-            Back to Games
-          </Link>
-        </div>
-      </div>
-    );
   }
 
   if (gameState === "choose") {
