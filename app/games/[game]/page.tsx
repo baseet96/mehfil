@@ -190,12 +190,12 @@ export default function GamePage() {
         <p className="text-lg text-foreground/60">
           Generating your prompts...
         </p>
-        <Link
-          href="/games"
+        <button
+          onClick={() => setGameState("choose")}
           className="mt-4 text-sm text-foreground/50 transition-colors hover:text-foreground/70"
         >
           Cancel
-        </Link>
+        </button>
       </div>
     );
   }
