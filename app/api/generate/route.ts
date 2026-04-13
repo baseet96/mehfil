@@ -15,6 +15,8 @@ import { buildTwoTruthsOneLiePrompt } from "@/lib/prompts/two-truths-one-lie";
 import { buildCharadesPrompt } from "@/lib/prompts/charades";
 import { buildImposterPrompt } from "@/lib/prompts/imposter";
 
+export const maxDuration = 30;
+
 const DEFAULT_COUNT = 25;
 
 function getPromptForGame(
@@ -128,6 +130,8 @@ export async function POST(request: Request) {
         return NextResponse.json({ deck: deckResult.deck });
       }
 
+      console.error(`[generate] Attempt ${attempt + 1} validation failed for ${game}:`, deckResult.error);
+
       // First attempt failed validation — retry once
       if (attempt === 0) {
         continue;
@@ -140,7 +144,9 @@ export async function POST(request: Request) {
         },
         { status: 502 }
       );
-    } catch {
+    } catch (err) {
+      console.error(`[generate] Attempt ${attempt + 1} error for ${game}:`, err instanceof Error ? err.message : err);
+
       if (attempt === 1) {
         return NextResponse.json(
           {
