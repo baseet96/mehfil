@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { shuffle } from "@/lib/shuffle";
 
 interface TruthOrDareGameProps {
@@ -79,7 +80,15 @@ export default function TruthOrDareGame({
           <p className="text-2xl font-medium leading-relaxed">{current.text}</p>
         </button>
 
-        <p className="text-sm text-foreground/30">Tap to continue</p>
+        <div className="flex flex-col items-center gap-2">
+          <p className="text-sm text-foreground/30">Tap to continue</p>
+          <Link
+            href="/games"
+            className="text-sm text-foreground/40 transition-colors hover:text-foreground/70"
+          >
+            End Game
+          </Link>
+        </div>
       </div>
     );
   }
@@ -117,7 +126,15 @@ export default function TruthOrDareGame({
         </button>
       </div>
 
-      <p className="text-sm text-foreground/30">Pick one</p>
+      <div className="flex flex-col items-center gap-2">
+        <p className="text-sm text-foreground/30">Pick one</p>
+        <Link
+          href="/games"
+          className="text-sm text-foreground/40 transition-colors hover:text-foreground/70"
+        >
+          End Game
+        </Link>
+      </div>
     </div>
   );
 }

@@ -5,8 +5,12 @@ import Link from "next/link";
 import { games } from "@/lib/games";
 import Popup from "@/components/Popup";
 
+const DISMISSED_KEY = "mehfil-ai-disclosure-seen";
+
 export default function GamesPage() {
-  const [showInfo, setShowInfo] = useState(true);
+  const [showInfo, setShowInfo] = useState(
+    () => !localStorage.getItem(DISMISSED_KEY)
+  );
 
   return (
     <div className="flex flex-1 flex-col items-center px-6 py-12">
@@ -45,7 +49,10 @@ export default function GamesPage() {
       {showInfo && (
         <Popup
           message="Game content is AI-generated"
-          onDismiss={() => setShowInfo(false)}
+          onDismiss={() => {
+            localStorage.setItem(DISMISSED_KEY, "1");
+            setShowInfo(false);
+          }}
         />
       )}
     </div>

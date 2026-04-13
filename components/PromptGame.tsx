@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 
 interface PromptGameProps {
   deck: string[];
@@ -41,7 +42,15 @@ export default function PromptGame({
         </p>
       </button>
 
-      <p className="text-sm text-foreground/30">Tap to continue</p>
+      <div className="flex flex-col items-center gap-2">
+        <p className="text-sm text-foreground/30">Tap to continue</p>
+        <Link
+          href="/games"
+          className="text-sm text-foreground/40 transition-colors hover:text-foreground/70"
+        >
+          End Game
+        </Link>
+      </div>
     </div>
   );
 }
