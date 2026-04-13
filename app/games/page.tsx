@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { games } from "@/lib/games";
 import Popup from "@/components/Popup";
@@ -8,9 +8,11 @@ import Popup from "@/components/Popup";
 const DISMISSED_KEY = "mehfil-ai-disclosure-seen";
 
 export default function GamesPage() {
-  const [showInfo, setShowInfo] = useState(
-    () => !localStorage.getItem(DISMISSED_KEY)
-  );
+  const [showInfo, setShowInfo] = useState(false);
+
+  useEffect(() => {
+    if (!localStorage.getItem(DISMISSED_KEY)) setShowInfo(true);
+  }, []);
 
   return (
     <div className="flex flex-1 flex-col items-center px-6 py-12">
