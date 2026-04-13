@@ -316,6 +316,12 @@ export default function CharadesGame({
           >
             Start Game
           </button>
+          <Link
+            href="/games"
+            className="mt-2 text-sm text-foreground/50 transition-colors hover:text-foreground/70"
+          >
+            &larr; Back
+          </Link>
         </div>
 
         <div />
@@ -343,6 +349,12 @@ export default function CharadesGame({
           >
             Personalize
           </button>
+          <button
+            onClick={() => setPhase("setup")}
+            className="mt-2 text-sm text-foreground/50 transition-colors hover:text-foreground/70"
+          >
+            &larr; Back
+          </button>
         </div>
       </div>
     );
@@ -350,7 +362,12 @@ export default function CharadesGame({
 
   // --- Personalizing ---
   if (phase === "personalizing") {
-    return <PersonalizationFlow onComplete={handleGenerate} />;
+    return (
+      <PersonalizationFlow
+        onComplete={handleGenerate}
+        onBack={() => setPhase("choose-deck")}
+      />
+    );
   }
 
   // --- Loading ---
@@ -359,6 +376,12 @@ export default function CharadesGame({
       <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-foreground/20 border-t-foreground" />
         <p className="text-lg text-foreground/60">Generating your prompts...</p>
+        <button
+          onClick={() => setPhase("choose-deck")}
+          className="mt-4 text-sm text-foreground/50 transition-colors hover:text-foreground/70"
+        >
+          Cancel
+        </button>
       </div>
     );
   }

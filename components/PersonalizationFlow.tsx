@@ -30,10 +30,12 @@ function getActiveSteps(language: string): Step[] {
 
 interface PersonalizationFlowProps {
   onComplete: (data: PersonalizationInput) => void;
+  onBack: () => void;
 }
 
 export default function PersonalizationFlow({
   onComplete,
+  onBack,
 }: PersonalizationFlowProps) {
   const [stepIndex, setStepIndex] = useState(0);
   const [isAdult, setIsAdult] = useState<boolean | null>(null);
@@ -198,6 +200,12 @@ export default function PersonalizationFlow({
             {isLastStep ? "Generate" : "Next"}
           </button>
         )}
+        <button
+          onClick={stepIndex === 0 ? onBack : () => setStepIndex(stepIndex - 1)}
+          className="text-sm text-foreground/50 transition-colors hover:text-foreground/70"
+        >
+          &larr; Back
+        </button>
       </div>
     </div>
   );

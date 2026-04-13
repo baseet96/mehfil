@@ -16,6 +16,12 @@ export default function GamesPage() {
 
   return (
     <div className="flex flex-1 flex-col items-center px-6 py-12">
+      <Link
+        href="/"
+        className="mb-6 text-sm text-foreground/50 transition-colors hover:text-foreground/70"
+      >
+        &larr; Back
+      </Link>
       <h1 className="mb-8 text-3xl font-bold">Pick a game</h1>
       <div className="grid w-full max-w-md grid-cols-2 gap-4">
         {games.map((game) =>
