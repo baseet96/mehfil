@@ -10,6 +10,7 @@ const VALID_GAMES = [
   "truth-or-dare",
   "two-truths-one-lie",
   "charades",
+  "imposter",
 ] as const;
 
 export type GameSlug = (typeof VALID_GAMES)[number];

@@ -12,5 +12,5 @@ export const games: GameInfo[] = [
   { slug: "truth-or-dare", name: "Truth or Dare", description: "Spill or act \u2014 your call", emoji: "\u{1F3AD}", available: true },
   { slug: "two-truths-one-lie", name: "Two Truths and a Lie", description: "Spot the liar", emoji: "\u{1F925}", available: true },
   { slug: "charades", name: "Charades", description: "Act it out, no words", emoji: "\u{1F3AC}", available: true },
-  { slug: "imposter", name: "Imposter", description: "Find who doesn't belong", emoji: "\u{1F575}\u{FE0F}", available: false },
+  { slug: "imposter", name: "Imposter", description: "Find who doesn't belong", emoji: "\u{1F575}\u{FE0F}", available: true },
 ];

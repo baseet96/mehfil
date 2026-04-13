@@ -10,11 +10,13 @@ import { mostLikelyToDeck } from "@/lib/decks/most-likely-to";
 import { truthOrDareDeck } from "@/lib/decks/truth-or-dare";
 import { twoTruthsOneLieDeck } from "@/lib/decks/two-truths-one-lie";
 import { charadesDeck } from "@/lib/decks/charades";
+import { imposterDeck } from "@/lib/decks/imposter";
 import { getCachedDeck, cacheDeck } from "@/lib/storage";
 import type { PersonalizationInput } from "@/lib/validators";
 import PromptGame from "@/components/PromptGame";
 import TruthOrDareGame from "@/components/TruthOrDareGame";
 import CharadesGame from "@/components/CharadesGame";
+import ImposterGame from "@/components/ImposterGame";
 import Toast from "@/components/Toast";
 import PersonalizationFlow from "@/components/PersonalizationFlow";
 
@@ -30,6 +32,8 @@ function getStaticDeck(slug: string): string[] {
       return twoTruthsOneLieDeck;
     case "charades":
       return charadesDeck;
+    case "imposter":
+      return imposterDeck;
     default:
       return [];
   }
@@ -234,6 +238,12 @@ export default function GamePage() {
       />
     ) : slug === "charades" ? (
       <CharadesGame
+        deck={deck}
+        gameName={gameInfo.name}
+        onGameOver={() => setGameState("game-over")}
+      />
+    ) : slug === "imposter" ? (
+      <ImposterGame
         deck={deck}
         gameName={gameInfo.name}
         onGameOver={() => setGameState("game-over")}

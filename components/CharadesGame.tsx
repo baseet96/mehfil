@@ -514,9 +514,17 @@ export default function CharadesGame({
           </div>
         </div>
 
-        <p className="text-sm text-foreground/30">
-          {mode === "speed" ? `Round score: ${turnScore}` : scoreBar}
-        </p>
+        <div className="flex flex-col items-center gap-2">
+          <p className="text-sm text-foreground/30">
+            {mode === "speed" ? `Round score: ${turnScore}` : scoreBar}
+          </p>
+          <button
+            onClick={handleEndGame}
+            className="cursor-pointer rounded-full border border-foreground/20 px-6 py-2 text-sm text-foreground/60 transition-colors hover:bg-foreground/5"
+          >
+            End Game
+          </button>
+        </div>
       </div>
       {toast && (
         <Toast message={toast} type="error" onDismiss={() => setToast(null)} />
