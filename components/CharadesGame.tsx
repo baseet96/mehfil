@@ -392,7 +392,7 @@ export default function CharadesGame({
           </button>
           <button
             onClick={handleEndGame}
-            className="cursor-pointer text-sm text-foreground/40 transition-colors hover:text-foreground/70"
+            className="cursor-pointer text-sm text-foreground/60 underline underline-offset-4 transition-colors hover:text-foreground/80"
           >
             End Game
           </button>
@@ -430,7 +430,7 @@ export default function CharadesGame({
           {!outOfPrompts && (
             <button
               onClick={handleEndGame}
-              className="cursor-pointer text-sm text-foreground/40 transition-colors hover:text-foreground/70"
+              className="cursor-pointer text-sm text-foreground/60 underline underline-offset-4 transition-colors hover:text-foreground/80"
             >
               End Game
             </button>

@@ -84,7 +84,7 @@ export default function TruthOrDareGame({
           <p className="text-sm text-foreground/30">Tap to continue</p>
           <Link
             href="/games"
-            className="text-sm text-foreground/40 transition-colors hover:text-foreground/70"
+            className="text-sm text-foreground/60 underline underline-offset-4 transition-colors hover:text-foreground/80"
           >
             End Game
           </Link>
@@ -130,7 +130,7 @@ export default function TruthOrDareGame({
         <p className="text-sm text-foreground/30">Pick one</p>
         <Link
           href="/games"
-          className="text-sm text-foreground/40 transition-colors hover:text-foreground/70"
+          className="text-sm text-foreground/60 underline underline-offset-4 transition-colors hover:text-foreground/80"
         >
           End Game
         </Link>
