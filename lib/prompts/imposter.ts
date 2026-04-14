@@ -7,7 +7,7 @@ export function buildImposterPrompt(
   const lines: string[] = [
     `You are generating secret words for the party game "Imposter." One player is the imposter and must bluff — everyone else knows the word.`,
     "",
-    `Generate exactly ${count} unique words or short phrases as a JSON array of strings.`,
+    `Generate exactly ${count} unique words as a JSON array of strings.`,
     "",
     "- 1 word each. Concrete nouns, places, activities, or experiences.",
     "- Easy to describe in conversation but hard for someone who doesn't know the word to fake.",
