@@ -9,7 +9,7 @@ export function buildImposterPrompt(
     "",
     `Generate exactly ${count} unique words or short phrases as a JSON array of strings.`,
     "",
-    "- 1–3 words each. Concrete nouns, places, activities, or experiences.",
+    "- 1 word each. Concrete nouns, places, activities, or experiences.",
     "- Easy to describe in conversation but hard for someone who doesn't know the word to fake.",
     "- Mix categories: food, animals, places, objects, activities, occupations, experiences.",
     "- No abstract concepts, no proper nouns, no brand names, no duplicates.",
