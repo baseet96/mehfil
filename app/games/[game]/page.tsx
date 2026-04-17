@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { games } from "@/lib/games";
@@ -11,14 +11,15 @@ import { truthOrDareDeck } from "@/lib/decks/truth-or-dare";
 import { twoTruthsOneLieDeck } from "@/lib/decks/two-truths-one-lie";
 import { charadesDeck } from "@/lib/decks/charades";
 import { imposterDeck } from "@/lib/decks/imposter";
-import { getCachedDeck, cacheDeck } from "@/lib/storage";
 import type { PersonalizationInput } from "@/lib/validators";
+import { useGenerateDeck } from "@/lib/hooks/use-generate-deck";
 import PromptGame from "@/components/PromptGame";
 import TruthOrDareGame from "@/components/TruthOrDareGame";
 import CharadesGame from "@/components/CharadesGame";
 import ImposterGame from "@/components/ImposterGame";
-import Toast from "@/components/Toast";
 import PersonalizationFlow from "@/components/PersonalizationFlow";
+import LoadingState from "@/components/LoadingState";
+import ErrorState from "@/components/ErrorState";
 
 function getStaticDeck(slug: string): string[] {
   switch (slug) {
@@ -46,12 +47,7 @@ const LLM_GAMES = new Set([
   "two-truths-one-lie",
 ]);
 
-type GameState =
-  | "choose"
-  | "personalizing"
-  | "loading"
-  | "playing"
-  | "game-over";
+type GameState = "choose" | "personalizing" | "playing" | "game-over";
 
 export default function GamePage() {
   const params = useParams<{ game: string }>();
@@ -60,14 +56,22 @@ export default function GamePage() {
 
   const staticDeck = useMemo(() => getStaticDeck(slug), [slug]);
 
-  const [gameState, setGameState] = useState<GameState>(() => {
-    if (supportsLLM) return "choose";
-    return "playing";
-  });
+  const [gameState, setGameState] = useState<GameState>(() =>
+    supportsLLM ? "choose" : "playing"
+  );
   const [deck, setDeck] = useState<string[]>(() =>
     supportsLLM ? [] : shuffle(staticDeck)
   );
-  const [toast, setToast] = useState<string | null>(null);
+
+  const handleDeckReady = useCallback((generated: string[]) => {
+    setDeck(shuffle(generated));
+    setGameState("playing");
+  }, []);
+
+  const { status, error, generate, retry, cancel, reset } = useGenerateDeck({
+    game: slug,
+    onSuccess: handleDeckReady,
+  });
 
   const gameInfo = games.find((g) => g.slug === slug && g.available);
 
@@ -86,59 +90,22 @@ export default function GamePage() {
   }
 
   function handleQuickStart() {
-    const defaults: PersonalizationInput = {
-      isAdult: false,
-      language: "English",
-    };
-    handleGenerate(defaults);
+    generate({ isAdult: false, language: "English" });
   }
 
-  async function handleGenerate(data: PersonalizationInput) {
-    setToast(null);
+  function handleUseDefault() {
+    reset();
+    setDeck(shuffle(staticDeck));
+    setGameState("playing");
+  }
 
-    const cached = getCachedDeck(slug, data);
-    if (cached) {
-      setDeck(shuffle(cached));
-      setGameState("playing");
-      return;
-    }
-
-    setGameState("loading");
-
-    try {
-      const res = await fetch("/api/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ game: slug, personalization: data, count: 25 }),
-      });
-
-      if (!res.ok) {
-        const body: { code?: string; error?: string } | null = await res
-          .json()
-          .catch(() => null);
-        throw new Error(
-          body?.code === "rate_limited"
-            ? (body.error ?? "Too many requests. Try again later.")
-            : "Couldn't personalize — using default deck instead."
-        );
-      }
-
-      const { deck: generated }: { deck: string[] } = await res.json();
-      cacheDeck(slug, data, generated);
-      setDeck(shuffle(generated));
-      setGameState("playing");
-    } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : "Couldn't personalize — using default deck instead.";
-      setToast(message);
-      setDeck(shuffle(staticDeck));
-      setGameState("playing");
-    }
+  function handleBackFromError() {
+    reset();
+    setGameState("choose");
   }
 
   function handlePlayAgain() {
+    reset();
     setDeck([]);
     if (supportsLLM) {
       setGameState("choose");
@@ -146,6 +113,30 @@ export default function GamePage() {
       setDeck(shuffle(staticDeck));
       setGameState("playing");
     }
+  }
+
+  if (status === "loading") {
+    return (
+      <LoadingState
+        message="Generating your prompts..."
+        onCancel={() => {
+          cancel();
+          setGameState("choose");
+        }}
+      />
+    );
+  }
+
+  if (status === "error" && error) {
+    return (
+      <ErrorState
+        title={error.title}
+        message={error.message}
+        onRetry={retry}
+        onUseDefault={handleUseDefault}
+        onBack={handleBackFromError}
+      />
+    );
   }
 
   if (gameState === "choose") {
@@ -169,7 +160,7 @@ export default function GamePage() {
           </button>
           <Link
             href="/games"
-            className="mt-2 text-sm text-foreground/50 transition-colors hover:text-foreground/70"
+            className="mt-2 px-4 py-2 text-sm text-foreground/50 transition-colors hover:text-foreground/70"
           >
             &larr; Back
           </Link>
@@ -181,26 +172,9 @@ export default function GamePage() {
   if (gameState === "personalizing") {
     return (
       <PersonalizationFlow
-        onComplete={handleGenerate}
+        onComplete={(data: PersonalizationInput) => generate(data)}
         onBack={() => setGameState("choose")}
       />
-    );
-  }
-
-  if (gameState === "loading") {
-    return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-foreground/20 border-t-foreground" />
-        <p className="text-lg text-foreground/60">
-          Generating your prompts...
-        </p>
-        <button
-          onClick={() => setGameState("choose")}
-          className="mt-4 text-sm text-foreground/50 transition-colors hover:text-foreground/70"
-        >
-          Cancel
-        </button>
-      </div>
     );
   }
 
@@ -229,39 +203,38 @@ export default function GamePage() {
     );
   }
 
-  const gameComponent =
-    slug === "truth-or-dare" ? (
+  if (slug === "truth-or-dare") {
+    return (
       <TruthOrDareGame
         deck={deck}
         gameName={gameInfo.name}
         onGameOver={() => setGameState("game-over")}
       />
-    ) : slug === "charades" ? (
+    );
+  }
+  if (slug === "charades") {
+    return (
       <CharadesGame
         deck={deck}
         gameName={gameInfo.name}
         onGameOver={() => setGameState("game-over")}
       />
-    ) : slug === "imposter" ? (
+    );
+  }
+  if (slug === "imposter") {
+    return (
       <ImposterGame
         deck={deck}
         gameName={gameInfo.name}
         onGameOver={() => setGameState("game-over")}
       />
-    ) : (
-      <PromptGame
-        deck={deck}
-        gameName={gameInfo.name}
-        onGameOver={() => setGameState("game-over")}
-      />
     );
-
+  }
   return (
-    <>
-      {gameComponent}
-      {toast && (
-        <Toast message={toast} type="error" onDismiss={() => setToast(null)} />
-      )}
-    </>
+    <PromptGame
+      deck={deck}
+      gameName={gameInfo.name}
+      onGameOver={() => setGameState("game-over")}
+    />
   );
 }

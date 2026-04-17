@@ -11,6 +11,7 @@ export default function GamesPage() {
   const [showInfo, setShowInfo] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- SSR-safe mount-time read; lazy init would cause hydration mismatch
     if (!localStorage.getItem(DISMISSED_KEY)) setShowInfo(true);
   }, []);
 

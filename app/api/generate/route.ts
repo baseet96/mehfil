@@ -132,7 +132,6 @@ export async function POST(request: Request) {
 
       console.error(`[generate] Attempt ${attempt + 1} validation failed for ${game}:`, deckResult.error);
 
-      // First attempt failed validation — retry once
       if (attempt === 0) {
         continue;
       }
@@ -140,18 +139,32 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           code: "generation_failed",
-          error: "AI generated unexpected content. Please try again.",
+          error: "AI returned unexpected content. Please try again.",
         },
         { status: 502 }
       );
     } catch (err) {
       console.error(`[generate] Attempt ${attempt + 1} error for ${game}:`, err instanceof Error ? err.message : err);
 
+      // Upstream Gemini quota exhausted — don't retry, tell user to come back
+      if (isQuotaExhausted(err)) {
+        return NextResponse.json(
+          {
+            code: "quota_exhausted",
+            error: "We've hit today's AI limit. Try again tomorrow, or use the default deck.",
+          },
+          {
+            status: 429,
+            headers: { "Retry-After": String(60 * 60 * 6) },
+          }
+        );
+      }
+
       if (attempt === 1) {
         return NextResponse.json(
           {
             code: "generation_failed",
-            error: "Couldn't reach the AI service. Please try again later.",
+            error: "Couldn't reach the AI service. Please try again.",
           },
           { status: 502 }
         );
@@ -166,4 +179,12 @@ export async function POST(request: Request) {
     },
     { status: 502 }
   );
+}
+
+function isQuotaExhausted(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const status = (err as { status?: unknown }).status;
+  if (status === 429) return true;
+  const message = err instanceof Error ? err.message : "";
+  return /\b429\b|RESOURCE_EXHAUSTED|quota/i.test(message);
 }

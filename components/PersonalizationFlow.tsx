@@ -202,7 +202,7 @@ export default function PersonalizationFlow({
         )}
         <button
           onClick={stepIndex === 0 ? onBack : () => setStepIndex(stepIndex - 1)}
-          className="text-sm text-foreground/50 transition-colors hover:text-foreground/70"
+          className="cursor-pointer px-4 py-2 text-sm text-foreground/50 transition-colors hover:text-foreground/70"
         >
           &larr; Back
         </button>

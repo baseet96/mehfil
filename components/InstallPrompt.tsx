@@ -16,6 +16,7 @@ export default function InstallPrompt() {
 
   useEffect(() => {
     if (window.matchMedia("(display-mode: standalone)").matches) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- SSR-safe mount-time read; lazy init would cause hydration mismatch
       setInstalled(true);
       return;
     }

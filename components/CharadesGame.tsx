@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { shuffle } from "@/lib/shuffle";
-import { getCachedDeck, cacheDeck } from "@/lib/storage";
-import type { PersonalizationInput } from "@/lib/validators";
+import { useGenerateDeck } from "@/lib/hooks/use-generate-deck";
 import PersonalizationFlow from "@/components/PersonalizationFlow";
-import Toast from "@/components/Toast";
+import LoadingState from "@/components/LoadingState";
+import ErrorState from "@/components/ErrorState";
 
 interface CharadesGameProps {
   deck: string[];
@@ -18,7 +18,6 @@ type Phase =
   | "setup"
   | "choose-deck"
   | "personalizing"
-  | "loading"
   | "ready"
   | "active"
   | "turn-over"
@@ -31,7 +30,6 @@ const GAME_SLUG = "charades";
 export default function CharadesGame({
   deck: staticDeck,
   gameName,
-  onGameOver,
 }: CharadesGameProps) {
   const [phase, setPhase] = useState<Phase>("setup");
   const [mode, setMode] = useState<Mode>("classic");
@@ -43,8 +41,17 @@ export default function CharadesGame({
   const [timeLeft, setTimeLeft] = useState(60);
   const [turnScore, setTurnScore] = useState(0);
   const [speedDeck, setSpeedDeck] = useState<string[]>([]);
-  const [toast, setToast] = useState<string | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const startWithDeckRef = useRef<((d: string[]) => void) | null>(null);
+  const handleDeckReady = useCallback((generated: string[]) => {
+    startWithDeckRef.current?.(generated);
+  }, []);
+
+  const { status, error, generate, retry, cancel, reset } = useGenerateDeck({
+    game: GAME_SLUG,
+    onSuccess: handleDeckReady,
+  });
 
   function teamName(i: number) {
     return teams[i] || `Team ${i + 1}`;
@@ -81,50 +88,22 @@ export default function CharadesGame({
     setPhase("ready");
   }
 
-  async function handleGenerate(data: PersonalizationInput) {
-    setToast(null);
-
-    const cached = getCachedDeck(GAME_SLUG, data);
-    if (cached) {
-      startWithDeck(cached);
-      return;
-    }
-
-    setPhase("loading");
-
-    try {
-      const res = await fetch("/api/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ game: GAME_SLUG, personalization: data, count: 25 }),
-      });
-
-      if (!res.ok) {
-        const body: { code?: string; error?: string } | null = await res
-          .json()
-          .catch(() => null);
-        throw new Error(
-          body?.code === "rate_limited"
-            ? (body.error ?? "Too many requests. Try again later.")
-            : "Couldn't personalize — using default deck instead."
-        );
-      }
-
-      const { deck: generated }: { deck: string[] } = await res.json();
-      cacheDeck(GAME_SLUG, data, generated);
-      startWithDeck(generated);
-    } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : "Couldn't personalize — using default deck instead.";
-      setToast(message);
-      startWithDeck(staticDeck);
-    }
-  }
+  useEffect(() => {
+    startWithDeckRef.current = startWithDeck;
+  });
 
   function handleQuickStart() {
-    handleGenerate({ isAdult: false, language: "English" });
+    generate({ isAdult: false, language: "English" });
+  }
+
+  function handleUseDefault() {
+    reset();
+    startWithDeck(staticDeck);
+  }
+
+  function handleBackFromError() {
+    reset();
+    setPhase("choose-deck");
   }
 
   function handlePlayAgain() {
@@ -188,6 +167,31 @@ export default function CharadesGame({
     setTimeLeft(timerDuration);
     setTurnScore(0);
     setPhase("ready");
+  }
+
+  // --- Generation loading / error ---
+  if (status === "loading") {
+    return (
+      <LoadingState
+        message="Generating your prompts..."
+        onCancel={() => {
+          cancel();
+          setPhase("choose-deck");
+        }}
+      />
+    );
+  }
+
+  if (status === "error" && error) {
+    return (
+      <ErrorState
+        title={error.title}
+        message={error.message}
+        onRetry={retry}
+        onUseDefault={handleUseDefault}
+        onBack={handleBackFromError}
+      />
+    );
   }
 
   // --- Done screen ---
@@ -318,7 +322,7 @@ export default function CharadesGame({
           </button>
           <Link
             href="/games"
-            className="mt-2 text-sm text-foreground/50 transition-colors hover:text-foreground/70"
+            className="mt-2 px-4 py-2 text-sm text-foreground/50 transition-colors hover:text-foreground/70"
           >
             &larr; Back
           </Link>
@@ -351,7 +355,7 @@ export default function CharadesGame({
           </button>
           <button
             onClick={() => setPhase("setup")}
-            className="mt-2 text-sm text-foreground/50 transition-colors hover:text-foreground/70"
+            className="mt-2 cursor-pointer px-4 py-2 text-sm text-foreground/50 transition-colors hover:text-foreground/70"
           >
             &larr; Back
           </button>
@@ -364,25 +368,9 @@ export default function CharadesGame({
   if (phase === "personalizing") {
     return (
       <PersonalizationFlow
-        onComplete={handleGenerate}
+        onComplete={(data) => generate(data)}
         onBack={() => setPhase("choose-deck")}
       />
-    );
-  }
-
-  // --- Loading ---
-  if (phase === "loading") {
-    return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-foreground/20 border-t-foreground" />
-        <p className="text-lg text-foreground/60">Generating your prompts...</p>
-        <button
-          onClick={() => setPhase("choose-deck")}
-          className="mt-4 text-sm text-foreground/50 transition-colors hover:text-foreground/70"
-        >
-          Cancel
-        </button>
-      </div>
     );
   }
 
@@ -409,7 +397,7 @@ export default function CharadesGame({
               setTurnScore(0);
               setPhase("active");
             }}
-            className="mt-2 cursor-pointer rounded-full bg-foreground px-10 py-4 text-xl font-medium text-background transition-opacity hover:opacity-90"
+            className="mt-2 cursor-pointer rounded-full bg-foreground px-8 py-3 text-lg font-medium text-background transition-opacity hover:opacity-90"
           >
             Start
           </button>
@@ -477,7 +465,7 @@ export default function CharadesGame({
 
   return (
     <>
-      <div className="flex flex-1 flex-col items-center justify-between px-6 py-12">
+      <div className="flex flex-1 flex-col items-center justify-between px-6 pt-12 pb-[calc(env(safe-area-inset-bottom,0px)+3rem)]">
         <div className="flex flex-col items-center gap-1">
           <h1 className="text-xl font-bold">{gameName}</h1>
           <span className="text-sm text-foreground/50">
@@ -526,9 +514,6 @@ export default function CharadesGame({
           </button>
         </div>
       </div>
-      {toast && (
-        <Toast message={toast} type="error" onDismiss={() => setToast(null)} />
-      )}
     </>
   );
 }
