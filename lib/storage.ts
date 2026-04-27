@@ -42,3 +42,30 @@ export function cacheDeck(
     // localStorage full or unavailable — silently ignore
   }
 }
+
+const PLAYERS_KEY = "mehfil:players";
+
+export function getRecentPlayers(): string[] {
+  try {
+    const stored = localStorage.getItem(PLAYERS_KEY);
+    if (!stored) return [];
+    const parsed: unknown = JSON.parse(stored);
+    if (
+      Array.isArray(parsed) &&
+      parsed.every((item) => typeof item === "string")
+    ) {
+      return parsed as string[];
+    }
+    return [];
+  } catch {
+    return [];
+  }
+}
+
+export function setRecentPlayers(players: string[]): void {
+  try {
+    localStorage.setItem(PLAYERS_KEY, JSON.stringify(players));
+  } catch {
+    // localStorage full or unavailable — silently ignore
+  }
+}

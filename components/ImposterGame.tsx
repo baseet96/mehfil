@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { shuffle } from "@/lib/shuffle";
+import { getRecentPlayers, setRecentPlayers } from "@/lib/storage";
 import { useGenerateDeck } from "@/lib/hooks/use-generate-deck";
 import PersonalizationFlow from "@/components/PersonalizationFlow";
 import LoadingState from "@/components/LoadingState";
@@ -43,10 +44,17 @@ export default function ImposterGame({
   const [imposterIndices, setImposterIndices] = useState<Set<number>>(
     new Set()
   );
+  const [prevImposters, setPrevImposters] = useState<Set<string>>(new Set());
   const [revealed, setRevealed] = useState<Set<number>>(new Set());
   const [activeReveal, setActiveReveal] = useState<number | null>(null);
   const [scores, setScores] = useState<Record<string, number>>({});
   const [round, setRound] = useState(1);
+  const [selectedCallers, setSelectedCallers] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    const saved = getRecentPlayers();
+    if (saved.length > 0) setPlayers(saved);
+  }, []);
 
   const startWithDeckRef = useRef<((d: string[]) => void) | null>(null);
   const handleDeckReady = useCallback((generated: string[]) => {
@@ -61,26 +69,39 @@ export default function ImposterGame({
   function addPlayer() {
     const name = nameInput.trim();
     if (name && !players.includes(name)) {
-      setPlayers([...players, name]);
+      const next = [...players, name];
+      setPlayers(next);
+      setRecentPlayers(next);
       setNameInput("");
     }
   }
 
   function removePlayer(index: number) {
-    setPlayers(players.filter((_, i) => i !== index));
+    const next = players.filter((_, i) => i !== index);
+    setPlayers(next);
+    setRecentPlayers(next);
   }
 
-  function startRound(deck: string[], idx: number, playerList: string[]) {
+  function startRound(
+    deck: string[],
+    idx: number,
+    playerList: string[],
+    avoid: Set<string>
+  ) {
     const currentWord = deck[idx % deck.length];
     setWord(currentWord);
 
     const impCount = Math.min(imposterCount, playerList.length - 1);
+    const allIndices = playerList.map((_, i) => i);
+    const preferred = shuffle(allIndices.filter((i) => !avoid.has(playerList[i])));
+    const fallback = shuffle(allIndices.filter((i) => avoid.has(playerList[i])));
+    const ordered = [...preferred, ...fallback];
+
     const indices = new Set<number>();
-    const shuffledIndices = shuffle(playerList.map((_, i) => i));
-    for (let i = 0; i < impCount; i++) {
-      indices.add(shuffledIndices[i]);
-    }
+    for (let i = 0; i < impCount; i++) indices.add(ordered[i]);
+
     setImposterIndices(indices);
+    setPrevImposters(new Set([...indices].map((i) => playerList[i])));
     setRevealed(new Set());
     setActiveReveal(null);
     setPhase("reveal");
@@ -93,7 +114,8 @@ export default function ImposterGame({
     const initial: Record<string, number> = {};
     for (const p of players) initial[p] = 0;
     setScores(initial);
-    startRound(shuffled, 0, players);
+    setPrevImposters(new Set());
+    startRound(shuffled, 0, players, new Set());
   }
 
   useEffect(() => {
@@ -114,11 +136,24 @@ export default function ImposterGame({
     setPhase("choose-deck");
   }
 
-  function handleWhoCalled(playerName: string) {
-    setScores((prev) => ({
-      ...prev,
-      [playerName]: (prev[playerName] || 0) + 1,
-    }));
+  function toggleCaller(playerName: string) {
+    setSelectedCallers((prev) => {
+      const next = new Set(prev);
+      if (next.has(playerName)) next.delete(playerName);
+      else next.add(playerName);
+      return next;
+    });
+  }
+
+  function confirmCallers() {
+    setScores((prev) => {
+      const next = { ...prev };
+      selectedCallers.forEach((name) => {
+        next[name] = (next[name] || 0) + 1;
+      });
+      return next;
+    });
+    setSelectedCallers(new Set());
     setPhase("scoreboard");
   }
 
@@ -137,19 +172,20 @@ export default function ImposterGame({
     const nextIdx = wordIndex + 1;
     setWordIndex(nextIdx);
     setRound((r) => r + 1);
-    startRound(wordDeck, nextIdx, players);
+    startRound(wordDeck, nextIdx, players, prevImposters);
   }
 
   function handlePlayAgain() {
     setPhase("setup");
-    setPlayers([]);
     setNameInput("");
     setWordDeck([]);
     setWordIndex(0);
     setWord("");
     setImposterIndices(new Set());
+    setPrevImposters(new Set());
     setRevealed(new Set());
     setActiveReveal(null);
+    setSelectedCallers(new Set());
     setScores({});
     setRound(1);
     reset();
@@ -518,19 +554,33 @@ export default function ImposterGame({
       <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6 text-center">
         <h1 className="text-2xl font-bold">Who called it?</h1>
         <p className="text-foreground/60">
-          Who identified the imposter?
+          Tap everyone who identified the imposter.
         </p>
         <div className="flex w-full max-w-xs flex-col gap-2">
-          {nonImposters.map((p) => (
-            <button
-              key={p}
-              onClick={() => handleWhoCalled(p)}
-              className="cursor-pointer rounded-xl border border-foreground/20 px-4 py-3 text-lg font-medium transition-colors hover:bg-foreground/5"
-            >
-              {p}
-            </button>
-          ))}
+          {nonImposters.map((p) => {
+            const isSelected = selectedCallers.has(p);
+            return (
+              <button
+                key={p}
+                onClick={() => toggleCaller(p)}
+                className={`cursor-pointer rounded-xl border px-4 py-3 text-lg font-medium transition-colors ${
+                  isSelected
+                    ? "border-foreground bg-foreground text-background"
+                    : "border-foreground/20 hover:bg-foreground/5"
+                }`}
+              >
+                {p}
+                {isSelected ? " \u2713" : ""}
+              </button>
+            );
+          })}
         </div>
+        <button
+          onClick={confirmCallers}
+          className="cursor-pointer rounded-full bg-foreground px-8 py-3 text-lg font-medium text-background transition-opacity hover:opacity-90"
+        >
+          Done
+        </button>
         <button
           onClick={() => setPhase("done")}
           className="cursor-pointer rounded-full border border-foreground/20 px-6 py-2 text-sm text-foreground/60 transition-colors hover:bg-foreground/5"
