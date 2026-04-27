@@ -49,12 +49,20 @@ export default function ImposterGame({
   const [activeReveal, setActiveReveal] = useState<number | null>(null);
   const [scores, setScores] = useState<Record<string, number>>({});
   const [round, setRound] = useState(1);
+  const [completedRounds, setCompletedRounds] = useState(0);
   const [selectedCallers, setSelectedCallers] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const saved = getRecentPlayers();
     if (saved.length > 0) setPlayers(saved);
   }, []);
+
+  useEffect(() => {
+    if (players.length >= MIN_PLAYERS) {
+      const max = players.length - 1;
+      if (imposterCount > max) setImposterCount(max);
+    }
+  }, [players.length, imposterCount]);
 
   const startWithDeckRef = useRef<((d: string[]) => void) | null>(null);
   const handleDeckReady = useCallback((generated: string[]) => {
@@ -115,6 +123,8 @@ export default function ImposterGame({
     for (const p of players) initial[p] = 0;
     setScores(initial);
     setPrevImposters(new Set());
+    setCompletedRounds(0);
+    setRound(1);
     startRound(shuffled, 0, players, new Set());
   }
 
@@ -154,6 +164,7 @@ export default function ImposterGame({
       return next;
     });
     setSelectedCallers(new Set());
+    setCompletedRounds((c) => c + 1);
     setPhase("scoreboard");
   }
 
@@ -165,6 +176,7 @@ export default function ImposterGame({
       });
       return next;
     });
+    setCompletedRounds((c) => c + 1);
     setPhase("scoreboard");
   }
 
@@ -177,6 +189,7 @@ export default function ImposterGame({
 
   function handlePlayAgain() {
     setPhase("setup");
+    setPlayers([]);
     setNameInput("");
     setWordDeck([]);
     setWordIndex(0);
@@ -188,6 +201,7 @@ export default function ImposterGame({
     setSelectedCallers(new Set());
     setScores({});
     setRound(1);
+    setCompletedRounds(0);
     reset();
   }
 
@@ -224,25 +238,33 @@ export default function ImposterGame({
     const sorted = sortedPlayers();
     const topScore = scores[sorted[0]] || 0;
     const winners = sorted.filter((p) => (scores[p] || 0) === topScore);
-    const winnerText =
-      winners.length > 1 ? "It\u2019s a Tie!" : `${winners[0]} Wins!`;
+    const noRounds = completedRounds === 0;
+    const winnerText = noRounds
+      ? "Game Ended"
+      : winners.length > 1
+        ? "It\u2019s a Tie!"
+        : `${winners[0]} Wins!`;
 
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6 text-center">
         <h1 className="text-4xl font-bold">{winnerText}</h1>
         <p className="text-foreground/50">
-          {round - 1} round{round - 1 !== 1 ? "s" : ""} played
+          {noRounds
+            ? "No rounds played"
+            : `${completedRounds} round${completedRounds !== 1 ? "s" : ""} played`}
         </p>
-        <div className="flex flex-col items-center gap-1">
-          {sorted.map((p) => (
-            <p key={p} className="text-xl">
-              <span className={winners.includes(p) ? "font-bold" : ""}>
-                {p}
-              </span>
-              : {scores[p] || 0}
-            </p>
-          ))}
-        </div>
+        {!noRounds && (
+          <div className="flex flex-col items-center gap-1">
+            {sorted.map((p) => (
+              <p key={p} className="text-xl">
+                <span className={winners.includes(p) ? "font-bold" : ""}>
+                  {p}
+                </span>
+                : {scores[p] || 0}
+              </p>
+            ))}
+          </div>
+        )}
         <div className="flex flex-col gap-3">
           <button
             onClick={handlePlayAgain}
@@ -593,6 +615,7 @@ export default function ImposterGame({
 
   // --- Scoreboard phase ---
   const sorted = sortedPlayers();
+  const outOfWords = wordIndex + 1 >= wordDeck.length;
 
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6 text-center">
@@ -605,12 +628,18 @@ export default function ImposterGame({
         ))}
       </div>
       <div className="flex flex-col gap-3">
-        <button
-          onClick={handleNextRound}
-          className="cursor-pointer rounded-full bg-foreground px-8 py-3 text-lg font-medium text-background transition-opacity hover:opacity-90"
-        >
-          Next Round
-        </button>
+        {outOfWords ? (
+          <p className="text-sm text-foreground/50">
+            That was the last word.
+          </p>
+        ) : (
+          <button
+            onClick={handleNextRound}
+            className="cursor-pointer rounded-full bg-foreground px-8 py-3 text-lg font-medium text-background transition-opacity hover:opacity-90"
+          >
+            Next Round
+          </button>
+        )}
         <button
           onClick={() => setPhase("done")}
           className="cursor-pointer rounded-full border border-foreground/20 px-6 py-2 text-sm text-foreground/60 transition-colors hover:bg-foreground/5"
